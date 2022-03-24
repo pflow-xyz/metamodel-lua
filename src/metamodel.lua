@@ -7,7 +7,6 @@ function domodel(schema, declaration)
 		schema = schema,
 		roles = {},
 		places = {},
-		place_count = 1, -- NOTE lua convention uses 1 as first index
 		transitions = {},
 		arcs = {},
 	}
@@ -34,19 +33,20 @@ function domodel(schema, declaration)
 		}
 	end
 
+	local place_count = 0
+
 	local function cell (label, initial, capacity, position)
+		place_count = place_count + 1
 		local place = {
 			label=label,
 			initial=initial or 0,
 			capacity=capacity or 0,
 			position=position or {},
-			offset= def.place_count
+			offset= place_count
 		}
-		def.place_count = def.place_count + 1
 		def.places[label] = place
 
 		local function tx(weight, target)
-			local source = { place = place }
 			table.insert(def.arcs, {
 				source = { place = place },
 				target = target,
