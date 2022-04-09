@@ -18,24 +18,24 @@ domodel("TicTacToe", function (fn, cell, role)
 
     local players = {
         [X] = {
-            turn = cell(X, 1, 1),
-            role = role(X),
-            next = O
+            turn = cell(X, 1, 1), -- track turns, X goes first
+            role = role(X), -- player X can only mark X's
+            next = O -- O moves next
         },
         [O] = {
-            turn = cell(O, 0, 1),
-            role = role(O),
-            next = X
+            turn = cell(O, 0, 1), -- track turns, moves second
+            role = role(O), -- player O can only mark O's
+            next = X -- X moves next
         }
     }
 
     for i, board_row in pairs(board) do
         for j in pairs(board_row) do
             for marking, player in pairs(players) do
-                local move = fn(marking..i..j, player.role)
-                player.turn.tx(1, move)
-                board[i][j].tx(1, move)
-                move.tx(1, players[player.next].turn)
+                local move = fn(marking..i..j, player.role) -- make a move
+                player.turn.tx(1, move) -- take turn
+                board[i][j].tx(1, move) -- take board space
+                move.tx(1, players[player.next].turn) -- mark next turn
             end
         end
     end

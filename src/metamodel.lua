@@ -24,6 +24,8 @@
 model = {}
 
 -- load a model using internal Lua DSL
+-- must call index() after constructing model
+-- if declaration function is not provided
 function domodel(schema, declaration)
 
 	local def = {
@@ -59,7 +61,7 @@ function domodel(schema, declaration)
 	local place_count = 0
 
 	local function cell (label, initial, capacity, position)
-		place_count = place_count + 1
+		place_count = place_count + 1 -- NOTE: lua arrays begin with index 1
 		local place = {
 			label=label,
 			initial=initial or 0,
@@ -103,8 +105,6 @@ function domodel(schema, declaration)
 		return def.roles[label]
 	end
 
-	declaration(fn, cell, role)
-
 	local function empty_vector()
 		local v = {}
 		for _, p in pairs( def.places ) do
@@ -129,25 +129,30 @@ function domodel(schema, declaration)
 		return v
 	end
 
-	for _, t in pairs( def.transitions ) do
-		t.delta = empty_vector() -- right size all deltas
-	end
+	-- index arcs as delta vectors to construct state machine
+	local function index()
+		for _, t in pairs( def.transitions ) do
+			t.delta = empty_vector() -- right size all deltas
+		end
 
-	for _, arc in pairs( def.arcs ) do
-		if (arc.inhibit) then
-			local g = {
-				label = arc.source.place.label,
-				delta = empty_vector(),
-			}
-			g.delta[arc.source.place.offset] = 0-arc.weight
-			arc.target.transition.guards[arc.source.place.label] = g
-		else
-			if (arc.source.transition) then
-				arc.source.transition.delta[arc.target.place.offset] = arc.weight
+		for _, arc in pairs( def.arcs ) do
+			if (arc.inhibit) then
+				local g = {
+					label = arc.source.place.label,
+					delta = empty_vector(),
+				}
+				g.delta[arc.source.place.offset] = 0-arc.weight
+				arc.target.transition.guards[arc.source.place.label] = g
 			else
-				arc.target.transition.delta[arc.source.place.offset] = 0-arc.weight
+				if (arc.source.transition) then
+					arc.source.transition.delta[arc.target.place.offset] = arc.weight
+				else
+					arc.target.transition.delta[arc.source.place.offset] = 0-arc.weight
+				end
 			end
 		end
+
+		return model[schema]
 	end
 
 	local function vector_add(state, delta, multiple)
@@ -167,6 +172,7 @@ function domodel(schema, declaration)
 	end
 
 	local function guard_fails(state, action, multiple)
+		assert(action, 'action is nil')
 		local t = def.transitions[action]
 		assert(t, 'action not found: '..action)
 		for _, guard in pairs(t.guards) do
@@ -205,11 +211,20 @@ function domodel(schema, declaration)
 	end
 
 	model[schema] = {
+		dsl = { fn = fn, cell = cell, role = role },
 		def = def,
+		index = index,
 		empty_vector = empty_vector,
 		initial_vector = initial_vector,
 		capacity_vector = capacity_vector,
 		test_fire = test_fire,
 		fire = fire,
 	}
+
+	if declaration then
+		-- invoke the embedded DSL
+		declaration(fn, cell, role)
+	end
+
+	return model[schema]
 end

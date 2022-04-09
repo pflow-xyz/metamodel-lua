@@ -26,6 +26,7 @@ describe("Metamodel", function()
       assert.True(move("X22"))
 
       assert.are.same(#history, 5)
+      print_r(model.TicTacToe.def)
 
     end)
   end)
